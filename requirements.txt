@@ -1,0 +1,9 @@
+requests
+pandas
+numpy
+python-dotenv
+sqlalchemy
+pyodbc
+azure-storage-blob
+streamlit
+plotly
