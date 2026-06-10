@@ -13,6 +13,7 @@ import os
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+from datetime import datetime
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 from urllib.parse import quote_plus
@@ -359,8 +360,18 @@ def extract_skills_by_location(df):
 # PAGE LAYOUT
 # ============================================================================
 
-# Page title
-st.title("📊 South African Job Market Intelligence Dashboard")
+# Page header
+header_col, header_meta = st.columns([3, 1])
+with header_col:
+    st.title("📊 South African Job Market Intelligence Dashboard")
+    st.markdown(
+        "Modern portfolio-ready analytics for South African job market demand, skills, and salary trends."
+    )
+with header_meta:
+    last_refresh = datetime.now().strftime("%Y-%m-%d %H:%M")
+    st.metric("🕒 Last Updated", last_refresh)
+
+st.divider()
 
 # Load data from Azure SQL
 try:
@@ -370,24 +381,32 @@ try:
         st.error("No data available. Please ensure the database has been loaded with job data.")
         st.stop()
     
-    # Display data loaded status
     st.success(f"✓ Loaded {len(df)} job listings from Azure SQL Database")
     
 except Exception as e:
     st.error(f"Error loading data: {e}")
     st.stop()
 
+st.markdown(
+    "This dashboard is powered by Azure SQL Database and refreshed through a Python ETL pipeline that ingests Adzuna data, processes it with Pandas, and stores cleaned job market data for analytics."
+)
+
+st.divider()
 
 # ============================================================================
 # SIDEBAR FILTERS
 # ============================================================================
 
-st.sidebar.header("🔍 Filters")
+st.sidebar.title("Dashboard Filters")
+st.sidebar.markdown(
+    "Use these filters to explore the job market by category, company, and location. Set filters to 'All' to return to the full dataset."
+)
+st.sidebar.markdown("---")
 
 # Create filter options
-categories = sorted(df["category"].unique().tolist())
-companies = sorted(df["company"].unique().tolist())
-locations = sorted(df["location"].unique().tolist())
+categories = sorted(df["category"].dropna().unique().tolist())
+companies = sorted(df["company"].dropna().unique().tolist())
+locations = sorted(df["location"].dropna().unique().tolist())
 
 # Add "All" option to each filter
 categories = ["All"] + categories
@@ -413,317 +432,329 @@ selected_location = st.sidebar.selectbox(
     index=0,
 )
 
+st.sidebar.markdown("---")
+st.sidebar.markdown(
+    "**Reset filters:** choose 'All' for category, company, or location to clear the filter and return to the full dataset."
+)
+
 # Apply filters to data
 filtered_df = get_filtered_data(df, selected_category, selected_company, selected_location)
 
-# Display number of results after filtering
 st.sidebar.info(f"📌 Showing {len(filtered_df)} job(s)")
 
-
-# ============================================================================
-# KEY METRICS
-# ============================================================================
-
-st.subheader("📈 Key Metrics")
-
-# Create four columns for metrics
-col1, col2, col3, col4 = st.columns(4)
-
-# Metric 1: Total Jobs
-with col1:
-    total_jobs = len(filtered_df)
-    st.metric("Total Jobs", total_jobs)
-
-# Metric 2: Average Salary
-with col2:
-    salary_stats = get_salary_statistics(filtered_df)
-    if salary_stats["has_data"]:
-        avg_salary = salary_stats["average_salary"]
-        st.metric("Avg Salary (R)", f"{avg_salary:,.0f}")
-    else:
-        st.metric("Avg Salary (R)", "N/A", delta="No salary data")
-
-# Metric 3: Number of Companies
-with col3:
-    num_companies = filtered_df["company"].nunique()
-    st.metric("Companies", num_companies)
-
-# Metric 4: Number of Categories
-with col4:
-    num_categories = filtered_df["category"].nunique()
-    st.metric("Categories", num_categories)
-
-
-# ============================================================================
-# SKILLS ANALYTICS SECTION
-# ============================================================================
-
-st.subheader("💼 Skills Analytics")
-
-# Extract and count skills from filtered data
+# Ensure salary distribution and skills metrics are available for tabs
+salary_stats = get_salary_statistics(filtered_df)
+salary_distribution = filtered_df[filtered_df["salary_average"] > 0]["salary_average"]
 skills_df = extract_and_count_skills(filtered_df)
 
-# Create three columns for skills metrics
-col1, col2, col3 = st.columns(3)
-
-# Metric 1: Unique Skills Detected
-with col1:
-    unique_skills = len(skills_df)
-    st.metric("Unique Skills Detected", unique_skills)
-
-# Metric 2: Total Skill Mentions
-with col2:
-    total_skill_mentions = skills_df["count"].sum() if len(skills_df) > 0 else 0
-    st.metric("Total Skill Mentions", total_skill_mentions)
-
-# Metric 3: Most Common Skill
-with col3:
-    if len(skills_df) > 0:
-        most_common_skill = skills_df.iloc[0]["skill"]
-        most_common_count = skills_df.iloc[0]["count"]
-        st.metric("Most Common Skill", most_common_skill, delta=f"{most_common_count} mentions")
-    else:
-        st.metric("Most Common Skill", "N/A", delta="No skills data")
-
-# Chart: Top 15 In-Demand Skills
-st.markdown("#### Most In-Demand Skills (Top 15)")
-
-if len(skills_df) > 0:
-    # Get top 15 skills
-    top_skills = skills_df.head(15)
-    
-    # Create Plotly bar chart with skills on X-axis and count on Y-axis
-    fig = px.bar(
-        top_skills,
-        x="skill",
-        y="count",
-        color="count",
-        color_continuous_scale="Viridis",
-        height=400,
-        labels={"skill": "Skill", "count": "Number of Mentions"}
-    )
-    # Rotate X-axis labels for better readability
-    fig.update_layout(showlegend=False, xaxis_tickangle=-45)
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    st.info("No skills data available for this filter")
-
-
-# Create two columns for skills by category and skills by location charts
-col1, col2 = st.columns(2)
-
-# Chart: Top Skills by Job Category
-with col1:
-    st.markdown("#### Top Skills by Job Category")
-    
-    # Extract skills by category
-    skills_by_cat = extract_skills_by_category(filtered_df)
-    
-    if len(skills_by_cat) > 0:
-        # Get top 10 skills overall to focus the chart
-        top_10_skills = skills_by_cat["skill"].unique()[:10]
-        skills_by_cat_filtered = skills_by_cat[skills_by_cat["skill"].isin(top_10_skills)]
-        
-        # Create grouped bar chart
-        fig = px.bar(
-            skills_by_cat_filtered,
-            x="skill",
-            y="count",
-            color="category",
-            height=400,
-            labels={"skill": "Skill", "count": "Number of Mentions", "category": "Category"},
-            barmode="group"
-        )
-        # Rotate X-axis labels for better readability
-        fig.update_layout(xaxis_tickangle=-45, hovermode="x unified")
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("No skills data available for this filter")
-
-# Chart: Top Skills by Location
-with col2:
-    st.markdown("#### Top Skills by Location")
-    
-    # Extract skills by location
-    skills_by_loc = extract_skills_by_location(filtered_df)
-    
-    if len(skills_by_loc) > 0:
-        # Get top 10 skills overall to focus the chart
-        top_10_skills = skills_by_loc["skill"].unique()[:10]
-        skills_by_loc_filtered = skills_by_loc[skills_by_loc["skill"].isin(top_10_skills)]
-        
-        # Create grouped bar chart
-        fig = px.bar(
-            skills_by_loc_filtered,
-            x="skill",
-            y="count",
-            color="location",
-            height=400,
-            labels={"skill": "Skill", "count": "Number of Mentions", "location": "Location"},
-            barmode="group"
-        )
-        # Rotate X-axis labels for better readability
-        fig.update_layout(xaxis_tickangle=-45, hovermode="x unified")
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("No skills data available for this filter")
-
-
 # ============================================================================
-# CHARTS
+# DASHBOARD TABS
 # ============================================================================
 
-st.subheader("📊 Visualizations")
+overview_tab, skills_tab, salary_tab, architecture_tab, company_location_tab, data_tab = st.tabs(
+    ["Overview", "Skills", "Salary", "Architecture", "Companies & Locations", "Data Table"]
+)
 
-# Create two columns for the first row of charts
-col1, col2 = st.columns(2)
+with overview_tab:
+    st.subheader("Overview")
+    st.markdown("High-level metrics and market snapshot for the filtered job listings.")
 
-# Chart 1: Jobs by Category
-with col1:
-    st.markdown("#### Jobs by Category")
-    category_jobs = filtered_df["category"].value_counts().reset_index()
+    kpi1, kpi2, kpi3 = st.columns(3)
+    with kpi1:
+        st.metric("Total Jobs", len(filtered_df))
+    with kpi2:
+        st.metric(
+            "Average Salary",
+            f"R {salary_stats['average_salary']:,.0f}" if salary_stats["has_data"] else "N/A",
+        )
+    with kpi3:
+        st.metric("Unique Companies", filtered_df["company"].nunique())
+
+    kpi4, kpi5, kpi6 = st.columns(3)
+    with kpi4:
+        st.metric("Job Categories", filtered_df["category"].nunique())
+    with kpi5:
+        st.metric("Unique Skills", len(skills_df))
+    with kpi6:
+        st.metric("Total Skill Mentions", skills_df["count"].sum() if len(skills_df) > 0 else 0)
+
+    st.divider()
+    st.markdown("#### Market Snapshot")
+    category_jobs = filtered_df["category"].value_counts().head(10).reset_index()
     category_jobs.columns = ["Category", "Count"]
-    
+
     if len(category_jobs) > 0:
         fig = px.bar(
             category_jobs,
-            x="Category",
-            y="Count",
+            x="Count",
+            y="Category",
+            orientation="h",
+            template="plotly_white",
             color="Count",
             color_continuous_scale="Blues",
-            height=400,
+            height=450,
+            labels={"Count": "Job Listings", "Category": "Category"},
         )
-        fig.update_layout(showlegend=False, xaxis_tickangle=-45)
+        fig.update_layout(showlegend=False, yaxis_autorange="reversed", margin=dict(l=120, r=20, t=40, b=40))
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("No data available for this filter")
+        st.info("No category data available for the selected filters.")
 
-# Chart 2: Top Hiring Companies
-with col2:
-    st.markdown("#### Top Hiring Companies")
-    company_jobs = filtered_df["company"].value_counts().head(10).reset_index()
-    company_jobs.columns = ["Company", "Count"]
-    
-    if len(company_jobs) > 0:
+with skills_tab:
+    st.subheader("Skills Demand")
+    st.markdown("Deep dive into the most sought-after technical skills in the current dataset.")
+
+    skill_kpi1, skill_kpi2, skill_kpi3 = st.columns(3)
+    with skill_kpi1:
+        st.metric("Unique Skills Detected", len(skills_df))
+    with skill_kpi2:
+        st.metric("Total Skill Mentions", skills_df["count"].sum() if len(skills_df) > 0 else 0)
+    with skill_kpi3:
+        if len(skills_df) > 0:
+            top_skill = skills_df.iloc[0]["skill"]
+            top_skill_count = skills_df.iloc[0]["count"]
+            st.metric("Top Skill", top_skill, delta=f"{top_skill_count} mentions")
+        else:
+            st.metric("Top Skill", "N/A", delta="No skills data")
+
+    st.divider()
+    st.markdown("#### Most In-Demand Skills")
+    if len(skills_df) > 0:
+        top_skills = skills_df.head(15)
         fig = px.bar(
-            company_jobs,
-            x="Count",
-            y="Company",
-            color="Count",
-            color_continuous_scale="Greens",
-            height=400,
+            top_skills,
+            x="count",
+            y="skill",
             orientation="h",
+            template="plotly_white",
+            color="count",
+            color_continuous_scale="Viridis",
+            height=500,
+            labels={"count": "Mentions", "skill": "Skill"},
         )
-        fig.update_layout(showlegend=False, yaxis_autorange="reversed")
+        fig.update_layout(showlegend=False, yaxis_autorange="reversed", margin=dict(l=140, r=20, t=40, b=30))
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("No company data available for this filter")
-
-
-# Create two columns for the second row of charts
-col1, col2 = st.columns(2)
-
-# Chart 3: Jobs by Location
-with col1:
-    st.markdown("#### Jobs by Location (Top 10)")
-    location_jobs = filtered_df["location"].value_counts().head(10).reset_index()
-    location_jobs.columns = ["Location", "Count"]
-    
-    if len(location_jobs) > 0:
-        fig = px.bar(
-            location_jobs,
-            x="Location",
-            y="Count",
-            color="Count",
-            color_continuous_scale="Oranges",
-            height=400,
+        st.info(
+            "No skill data found for the selected filters. Try choosing All filters or another category/location."
         )
-        fig.update_layout(showlegend=False, xaxis_tickangle=-45)
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("No location data available for this filter")
 
-# Chart 4: Average Salary by Category
-with col2:
+    st.divider()
+    categories_col, locations_col = st.columns(2)
+
+    with categories_col:
+        st.markdown("#### Top Skills by Job Category")
+        skills_by_cat = extract_skills_by_category(filtered_df)
+        if len(skills_by_cat) > 0:
+            top_10_skills = skills_by_cat.groupby("skill")["count"].sum().nlargest(10).index.to_list()
+            skills_by_cat_filtered = skills_by_cat[skills_by_cat["skill"].isin(top_10_skills)]
+            fig = px.bar(
+                skills_by_cat_filtered,
+                x="count",
+                y="skill",
+                color="category",
+                orientation="h",
+                template="plotly_white",
+                barmode="group",
+                height=500,
+                labels={"count": "Mentions", "skill": "Skill", "category": "Category"},
+            )
+            fig.update_layout(showlegend=True, yaxis_autorange="reversed", margin=dict(l=140, r=20, t=40, b=30))
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info(
+                "No skill data found for the selected filters. Try choosing All filters or another category/location."
+            )
+
+    with locations_col:
+        st.markdown("#### Top Skills by Location")
+        skills_by_loc = extract_skills_by_location(filtered_df)
+        if len(skills_by_loc) > 0:
+            top_10_skills = skills_by_loc.groupby("skill")["count"].sum().nlargest(10).index.to_list()
+            skills_by_loc_filtered = skills_by_loc[skills_by_loc["skill"].isin(top_10_skills)]
+            fig = px.bar(
+                skills_by_loc_filtered,
+                x="count",
+                y="skill",
+                color="location",
+                orientation="h",
+                template="plotly_white",
+                barmode="group",
+                height=500,
+                labels={"count": "Mentions", "skill": "Skill", "location": "Location"},
+            )
+            fig.update_layout(showlegend=True, yaxis_autorange="reversed", margin=dict(l=140, r=20, t=40, b=30))
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info(
+                "No skill data found for the selected filters. Try choosing All filters or another category/location."
+            )
+
+with salary_tab:
+    st.subheader("Salary Insights")
+    st.markdown("Analyze compensation trends across the filtered dataset.")
+
+    salary_jobs = filtered_df[filtered_df["salary_average"] > 0]
+    salary_col1, salary_col2, salary_col3 = st.columns(3)
+    with salary_col1:
+        st.metric("Average Salary", f"R {salary_stats['average_salary']:,.0f}" if salary_stats["has_data"] else "N/A")
+    with salary_col2:
+        st.metric("Jobs with Salary Data", len(salary_jobs))
+    with salary_col3:
+        st.metric("Salary Data Coverage", f"{len(salary_jobs)}/{len(filtered_df)}")
+
+    st.divider()
     st.markdown("#### Average Salary by Category")
-    # Filter out records with no salary data
-    salary_by_category = filtered_df[filtered_df["salary_average"] > 0].groupby("category")["salary_average"].mean().reset_index()
+    salary_by_category = salary_jobs.groupby("category")["salary_average"].mean().reset_index()
     salary_by_category.columns = ["Category", "Average Salary"]
-    salary_by_category = salary_by_category.sort_values("Average Salary", ascending=False)
-    
+    salary_by_category = salary_by_category.sort_values("Average Salary", ascending=False).head(10)
     if len(salary_by_category) > 0:
         fig = px.bar(
             salary_by_category,
-            x="Category",
-            y="Average Salary",
+            x="Average Salary",
+            y="Category",
+            orientation="h",
+            template="plotly_white",
             color="Average Salary",
             color_continuous_scale="Reds",
-            height=400,
+            height=450,
+            labels={"Average Salary": "Average Salary (R)", "Category": "Category"},
         )
-        fig.update_layout(showlegend=False, xaxis_tickangle=-45)
+        fig.update_layout(showlegend=False, yaxis_autorange="reversed", margin=dict(l=120, r=20, t=40, b=40))
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("No salary data available for this filter")
+        st.info("No salary category data available for the selected filters.")
 
+    st.divider()
+    st.markdown("#### Salary Distribution")
+    if len(salary_distribution) > 0:
+        fig = px.histogram(
+            salary_distribution,
+            nbins=30,
+            template="plotly_white",
+            color_discrete_sequence=["#636efa"],
+            height=450,
+            labels={"value": "Salary (R)", "count": "Job Count"},
+        )
+        fig.update_layout(showlegend=False, margin=dict(l=40, r=20, t=40, b=40))
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("No salary distribution data available for the selected filters.")
 
-# Full-width chart: Salary Distribution
-st.markdown("#### Salary Distribution")
-salary_distribution = filtered_df[filtered_df["salary_average"] > 0]["salary_average"]
+with architecture_tab:
+    st.subheader("Architecture")
+    st.markdown("Understand the end-to-end data pipeline powering this dashboard.")
 
-if len(salary_distribution) > 0:
-    fig = px.histogram(
-        salary_distribution,
-        nbins=30,
-        title="Distribution of Average Salaries",
-        labels={"value": "Salary (R)", "count": "Number of Jobs"},
-        color_discrete_sequence=["#1f77b4"],
-        height=400,
+    st.markdown(
+        """
+        **Adzuna API**  
+        Ingest job listings and metadata from the Adzuna service.
+
+        **↓**
+
+        **Python ETL Pipeline**  
+        Clean, enrich, and transform raw job data into analytics-ready records.
+
+        **↓**
+
+        **Azure Blob Storage**  
+        Stage raw JSON files and store artifacts for traceability.
+
+        **↓**
+
+        **Azure SQL Database**  
+        Persist cleaned job records for querying and dashboard analytics.
+
+        **↓**
+
+        **Streamlit Dashboard**  
+        Display interactive hiring insights, salary trends, and skill demand.
+        """
     )
-    fig.update_layout(showlegend=False)
-    st.plotly_chart(fig, use_container_width=True)
-else:
-    st.info("No salary data available for this filter")
 
+with company_location_tab:
+    st.subheader("Companies & Locations")
+    st.markdown("Visualize the leading companies and geographies hiring in the current dataset.")
 
-# ============================================================================
-# DATA TABLE
-# ============================================================================
+    companies_col, locations_col = st.columns(2)
+    with companies_col:
+        st.markdown("#### Top Hiring Companies")
+        invalid_companies = {"Unknown", "No Company Listed", "None", ""}
+        company_clean = filtered_df["company"].fillna("").astype(str).str.strip()
+        valid_company_mask = ~company_clean.isin(invalid_companies)
+        company_jobs = filtered_df.loc[valid_company_mask, "company"].value_counts().head(10).reset_index()
+        company_jobs.columns = ["Company", "Count"]
+        if len(company_jobs) > 0:
+            fig = px.bar(
+                company_jobs,
+                x="Count",
+                y="Company",
+                orientation="h",
+                template="plotly_white",
+                color="Count",
+                color_continuous_scale="Greens",
+                height=450,
+                labels={"Count": "Job Listings", "Company": "Company"},
+            )
+            fig.update_layout(showlegend=False, yaxis_autorange="reversed", margin=dict(l=120, r=20, t=40, b=40))
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No company data available for the selected filters.")
 
-st.subheader("📋 Detailed Job Listings")
+    with locations_col:
+        st.markdown("#### Top Locations")
+        location_jobs = filtered_df["location"].value_counts().head(10).reset_index()
+        location_jobs.columns = ["Location", "Count"]
+        if len(location_jobs) > 0:
+            fig = px.bar(
+                location_jobs,
+                x="Count",
+                y="Location",
+                orientation="h",
+                template="plotly_white",
+                color="Count",
+                color_continuous_scale="Oranges",
+                height=450,
+                labels={"Count": "Job Listings", "Location": "Location"},
+            )
+            fig.update_layout(showlegend=False, yaxis_autorange="reversed", margin=dict(l=120, r=20, t=40, b=40))
+            st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.info("No location data available for the selected filters.")
 
-# Display filtered data table with selected columns
-columns_to_display = ["job_id", "title", "company", "location", "category", "salary_min", "salary_max", "salary_average", "skills"]
-display_df = filtered_df[columns_to_display].copy()
+with data_tab:
+    st.subheader("Detailed Job Listings")
+    st.markdown("Download the filtered dataset and inspect key fields used by the dashboard.")
 
-# Format salary columns
-display_df["salary_min"] = display_df["salary_min"].apply(lambda x: f"R {x:,.0f}" if x > 0 else "N/A")
-display_df["salary_max"] = display_df["salary_max"].apply(lambda x: f"R {x:,.0f}" if x > 0 else "N/A")
-display_df["salary_average"] = display_df["salary_average"].apply(lambda x: f"R {x:,.0f}" if x > 0 else "N/A")
+    columns_to_display = [
+        "job_id",
+        "title",
+        "company",
+        "location",
+        "category",
+        "salary_min",
+        "salary_max",
+        "salary_average",
+        "skills",
+    ]
+    display_df = filtered_df[columns_to_display].copy()
+    display_df["salary_min"] = display_df["salary_min"].apply(lambda x: f"R {x:,.0f}" if x > 0 else "N/A")
+    display_df["salary_max"] = display_df["salary_max"].apply(lambda x: f"R {x:,.0f}" if x > 0 else "N/A")
+    display_df["salary_average"] = display_df["salary_average"].apply(lambda x: f"R {x:,.0f}" if x > 0 else "N/A")
 
-st.dataframe(display_df, use_container_width=True, height=400)
-
-# Option to download filtered data as CSV
-csv = display_df.to_csv(index=False)
-st.download_button(
-    label="📥 Download Filtered Data as CSV",
-    data=csv,
-    file_name="job_market_data.csv",
-    mime="text/csv",
-)
-
-
-# ============================================================================
-# FOOTER
-# ============================================================================
+    st.dataframe(display_df, use_container_width=True, height=520)
+    csv = display_df.to_csv(index=False)
+    st.download_button(
+        label="📥 Download Filtered Data as CSV",
+        data=csv,
+        file_name="job_market_data.csv",
+        mime="text/csv",
+    )
 
 st.divider()
 st.markdown(
     """
-    **South African Job Market Intelligence Dashboard**
-    
-    This dashboard provides insights into the South African job market using data from the Adzuna API.
-    Data is automatically fetched, cleaned, and stored in Azure SQL Database.
-    
-    Last updated: Check the data ingestion schedule for latest updates.
+    Created by Thubelihle Ntabela
+    Azure Data Engineering Portfolio Project
     """
 )
