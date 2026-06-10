@@ -9,7 +9,7 @@ This is the primary entry point for the ETL pipeline that:
 5. Loads data into Azure SQL Database
 """
 
-from src.ingestion import fetch_jobs
+from src.ingestion import fetch_multiple_pages
 from src.processing.clean_jobs import clean_jobs
 from src.storage.blob_upload import upload_cleaned_jobs_to_blob
 from src.database.sql_loader import load_jobs_to_sql
@@ -32,14 +32,14 @@ def main():
     
     # STEP 1: Fetch jobs from Adzuna API
     print("\n[STEP 1] Fetching jobs from Adzuna API...")
-    jobs_data = fetch_jobs(keyword="data analyst", page=1)
+    jobs_data = fetch_multiple_pages(keyword="data analyst", pages=5)
     
     if not jobs_data:
         print("\n❌ Failed to fetch job data. Please check your credentials and internet connection.")
         return False
     
     jobs_count = len(jobs_data.get('results', []))
-    print(f"✓ Successfully fetched {jobs_count} job listings.")
+    print(f"✓ Successfully fetched {jobs_count} job listings across multiple pages.")
     
     # STEP 2: Clean raw job data
     print("\n[STEP 2] Cleaning raw job data...")
