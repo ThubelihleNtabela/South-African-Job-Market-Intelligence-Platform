@@ -6,22 +6,25 @@ This is the primary entry point for the ETL pipeline that:
 2. Cleans raw job data
 3. Saves cleaned CSV for further processing
 4. Uploads cleaned CSV to Azure Blob Storage
+5. Loads data into Azure SQL Database
 """
 
 from src.ingestion import fetch_jobs
 from src.processing.clean_jobs import clean_jobs
 from src.storage.blob_upload import upload_cleaned_jobs_to_blob
+from src.database.sql_loader import load_jobs_to_sql
 
 
 def main():
     """
     Main function to run the complete ETL pipeline.
     
-    The pipeline consists of four steps:
+    The pipeline consists of five steps:
     1. Fetch: Retrieve raw job data from Adzuna API
     2. Clean: Process and clean the raw data
     3. Save: Store cleaned data in CSV format
     4. Upload: Upload cleaned CSV to Azure Blob Storage
+    5. Load: Load data into Azure SQL Database
     """
     print("=" * 70)
     print("South African Job Market Intelligence Platform")
@@ -57,10 +60,20 @@ def main():
     upload_success = upload_cleaned_jobs_to_blob()
     
     if not upload_success:
-        print("\n⚠️  Warning: Azure upload skipped or failed. Check your Azure credentials.")
+        print("\n⚠️  Warning: Azure Blob Storage upload skipped or failed. Check your Azure credentials.")
         print("   The local CSV file has been saved successfully.")
     else:
         print("✓ Upload to Azure Blob Storage completed successfully.")
+    
+    # STEP 5: Load data into Azure SQL Database
+    print("\n[STEP 5] Loading data into Azure SQL Database...")
+    sql_success = load_jobs_to_sql()
+    
+    if not sql_success:
+        print("\n⚠️  Warning: Azure SQL Database load skipped or failed. Check your database credentials.")
+        print("   The data has been saved locally and to Blob Storage.")
+    else:
+        print("✓ Load to Azure SQL Database completed successfully.")
     
     print("\n" + "=" * 70)
     print("✓ ETL Pipeline completed successfully!")
