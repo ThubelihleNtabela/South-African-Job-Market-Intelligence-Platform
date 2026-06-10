@@ -1,22 +1,59 @@
 """
 Main entry point for the South African Job Market Intelligence Platform
+
+This is the primary entry point for the ETL pipeline that:
+1. Fetches jobs from Adzuna API
+2. Cleans raw job data
+3. Saves cleaned CSV for further processing
 """
 
 from src.ingestion import fetch_jobs
+from src.processing.clean_jobs import clean_jobs
 
 
 def main():
-    """Main function to run the data ingestion pipeline"""
-    print("South African Job Market Intelligence Platform started successfully.")
+    """
+    Main function to run the complete ETL pipeline.
     
-    # Fetch jobs from Adzuna API
-    print("\n--- Starting Data Ingestion ---")
+    The pipeline consists of three steps:
+    1. Fetch: Retrieve raw job data from Adzuna API
+    2. Clean: Process and clean the raw data
+    3. Save: Store cleaned data in CSV format
+    """
+    print("=" * 70)
+    print("South African Job Market Intelligence Platform")
+    print("=" * 70)
+    
+    # STEP 1: Fetch jobs from Adzuna API
+    print("\n[STEP 1] Fetching jobs from Adzuna API...")
     jobs_data = fetch_jobs(keyword="data analyst", page=1)
     
-    if jobs_data:
-        print(f"\nSuccessfully fetched {len(jobs_data.get('results', []))} job listings.")
-    else:
-        print("\nFailed to fetch job data. Please check your credentials and internet connection.")
+    if not jobs_data:
+        print("\n❌ Failed to fetch job data. Please check your credentials and internet connection.")
+        return False
+    
+    jobs_count = len(jobs_data.get('results', []))
+    print(f"✓ Successfully fetched {jobs_count} job listings.")
+    
+    # STEP 2: Clean raw job data
+    print("\n[STEP 2] Cleaning raw job data...")
+    cleaning_result = clean_jobs()
+    
+    if not cleaning_result:
+        print("\n❌ Failed to clean job data.")
+        return False
+    
+    print("✓ Data cleaning completed successfully.")
+    
+    # STEP 3: Save cleaned CSV (already done in clean_jobs function)
+    print("\n[STEP 3] Cleaned CSV saved to data/processed/cleaned_jobs.csv")
+    print(f"✓ File location: {cleaning_result['output_file']}")
+    
+    print("\n" + "=" * 70)
+    print("✓ ETL Pipeline completed successfully!")
+    print("=" * 70)
+    
+    return True
 
 
 if __name__ == "__main__":
