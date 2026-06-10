@@ -32,7 +32,7 @@ def main():
     
     # STEP 1: Fetch jobs from Adzuna API
     print("\n[STEP 1] Fetching jobs from Adzuna API...")
-    jobs_data = fetch_multiple_pages(keyword="data analyst", pages=25)
+    jobs_data = fetch_multiple_pages(keyword="data analyst", pages=50)
     
     if not jobs_data:
         print("\n❌ Failed to fetch job data. Please check your credentials and internet connection.")
