@@ -241,6 +241,120 @@ def extract_and_count_skills(df):
     return skills_df
 
 
+def extract_skills_by_category(df):
+    """
+    Extract and count skills grouped by job category.
+    
+    This function:
+    1. Iterates through each job record
+    2. Splits comma-separated skills
+    3. Removes "No Skills Identified" entries
+    4. Groups skills by category
+    5. Counts skill occurrences per category
+    
+    Args:
+        df (pd.DataFrame): Jobs DataFrame with 'skills' and 'category' columns
+        
+    Returns:
+        pd.DataFrame: DataFrame with columns ['category', 'skill', 'count'] 
+                     sorted by count (descending)
+    """
+    # Initialize list to store records
+    records = []
+    
+    # Iterate through each job
+    for _, row in df.iterrows():
+        category = row.get("category", "Unknown")
+        skills_text = row.get("skills", "")
+        
+        # Skip empty or "No Skills Identified" entries
+        if not skills_text or skills_text == "No Skills Identified":
+            continue
+        
+        # Split comma-separated skills and clean whitespace
+        skills = [skill.strip() for skill in skills_text.split(",")]
+        
+        # Add a record for each skill
+        for skill in skills:
+            if skill:  # Skip empty strings
+                records.append({
+                    "category": category,
+                    "skill": skill,
+                })
+    
+    # Convert to DataFrame and count occurrences
+    if records:
+        skills_by_category = pd.DataFrame(records)
+        skills_by_category = skills_by_category.groupby(
+            ["category", "skill"]
+        ).size().reset_index(name="count")
+        skills_by_category = skills_by_category.sort_values(
+            "count", ascending=False
+        ).reset_index(drop=True)
+    else:
+        # Return empty DataFrame if no records
+        skills_by_category = pd.DataFrame(columns=["category", "skill", "count"])
+    
+    return skills_by_category
+
+
+def extract_skills_by_location(df):
+    """
+    Extract and count skills grouped by location.
+    
+    This function:
+    1. Iterates through each job record
+    2. Splits comma-separated skills
+    3. Removes "No Skills Identified" entries
+    4. Groups skills by location
+    5. Counts skill occurrences per location
+    
+    Args:
+        df (pd.DataFrame): Jobs DataFrame with 'skills' and 'location' columns
+        
+    Returns:
+        pd.DataFrame: DataFrame with columns ['location', 'skill', 'count']
+                     sorted by count (descending)
+    """
+    # Initialize list to store records
+    records = []
+    
+    # Iterate through each job
+    for _, row in df.iterrows():
+        location = row.get("location", "Unknown")
+        skills_text = row.get("skills", "")
+        
+        # Skip empty or "No Skills Identified" entries
+        if not skills_text or skills_text == "No Skills Identified":
+            continue
+        
+        # Split comma-separated skills and clean whitespace
+        skills = [skill.strip() for skill in skills_text.split(",")]
+        
+        # Add a record for each skill
+        for skill in skills:
+            if skill:  # Skip empty strings
+                records.append({
+                    "location": location,
+                    "skill": skill,
+                })
+    
+    # Convert to DataFrame and count occurrences
+    if records:
+        skills_by_location = pd.DataFrame(records)
+        skills_by_location = skills_by_location.groupby(
+            ["location", "skill"]
+        ).size().reset_index(name="count")
+        skills_by_location = skills_by_location.sort_values(
+            "count", ascending=False
+        ).reset_index(drop=True)
+    else:
+        # Return empty DataFrame if no records
+        skills_by_location = pd.DataFrame(columns=["location", "skill", "count"])
+    
+    return skills_by_location
+
+
 # ============================================================================
 # PAGE LAYOUT
 # ============================================================================
@@ -393,6 +507,66 @@ if len(skills_df) > 0:
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("No skills data available for this filter")
+
+
+# Create two columns for skills by category and skills by location charts
+col1, col2 = st.columns(2)
+
+# Chart: Top Skills by Job Category
+with col1:
+    st.markdown("#### Top Skills by Job Category")
+    
+    # Extract skills by category
+    skills_by_cat = extract_skills_by_category(filtered_df)
+    
+    if len(skills_by_cat) > 0:
+        # Get top 10 skills overall to focus the chart
+        top_10_skills = skills_by_cat["skill"].unique()[:10]
+        skills_by_cat_filtered = skills_by_cat[skills_by_cat["skill"].isin(top_10_skills)]
+        
+        # Create grouped bar chart
+        fig = px.bar(
+            skills_by_cat_filtered,
+            x="skill",
+            y="count",
+            color="category",
+            height=400,
+            labels={"skill": "Skill", "count": "Number of Mentions", "category": "Category"},
+            barmode="group"
+        )
+        # Rotate X-axis labels for better readability
+        fig.update_layout(xaxis_tickangle=-45, hovermode="x unified")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("No skills data available for this filter")
+
+# Chart: Top Skills by Location
+with col2:
+    st.markdown("#### Top Skills by Location")
+    
+    # Extract skills by location
+    skills_by_loc = extract_skills_by_location(filtered_df)
+    
+    if len(skills_by_loc) > 0:
+        # Get top 10 skills overall to focus the chart
+        top_10_skills = skills_by_loc["skill"].unique()[:10]
+        skills_by_loc_filtered = skills_by_loc[skills_by_loc["skill"].isin(top_10_skills)]
+        
+        # Create grouped bar chart
+        fig = px.bar(
+            skills_by_loc_filtered,
+            x="skill",
+            y="count",
+            color="location",
+            height=400,
+            labels={"skill": "Skill", "count": "Number of Mentions", "location": "Location"},
+            barmode="group"
+        )
+        # Rotate X-axis labels for better readability
+        fig.update_layout(xaxis_tickangle=-45, hovermode="x unified")
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("No skills data available for this filter")
 
 
 # ============================================================================
