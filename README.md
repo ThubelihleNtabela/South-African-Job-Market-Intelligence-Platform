@@ -8,19 +8,22 @@ This portfolio project addresses the need for reliable labour market intelligenc
 
 The data pipeline is built using Python and Pandas to orchestrate ingestion, transformation, and storage. Job listings are collected from the Adzuna API, saved as raw JSON for traceability, then processed through an ETL workflow that cleans records, removes duplicates, and handles missing values. Processed data is exported to a clean CSV file and uploaded to Azure Blob Storage before being loaded into an Azure SQL Database for analytics and dashboarding.
 
-The Streamlit dashboard provides a recruiter-friendly analytics layer with interactive charts and filters powered by Plotly. Users can explore total jobs, average salary, top companies, job categories, and location trends. This end-to-end solution demonstrates modern Azure data engineering practices while making South African job market insights accessible and easy to interpret.
+The Streamlit dashboard provides a recruiter-friendly analytics layer with interactive charts and filters powered by Plotly. Users can explore total jobs, average salary, top companies, job categories, location trends, and skill demand. This end-to-end solution demonstrates modern Azure data engineering practices while making South African job market insights accessible and easy to interpret.
+
+The current version collects and processes approximately 775 South African job listings using multi-page Adzuna API ingestion.
+
+## Project Status
+
+Completed MVP with cloud pipeline and dashboard
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    A[Adzuna API] --> B[Python Ingestion]
-    B --> C[Raw JSON]
-    C --> D[ETL Processing with Pandas]
-    D --> E[Clean CSV]
-    E --> F[Azure Blob Storage]
-    F --> G[Azure SQL Database]
-    G --> H[Streamlit Dashboard]
+    A[Adzuna API] --> B[Python ETL Pipeline]
+    B --> C[Azure Blob Storage]
+    C --> D[Azure SQL Database]
+    D --> E[Streamlit Dashboard]
 ```
 
 ## 📸 Project Screenshots
@@ -28,17 +31,17 @@ flowchart LR
 The following screenshots demonstrate the end-to-end Azure Data Engineering pipeline and the resulting analytics dashboard for South African job market intelligence.
 
 ### 📊 Dashboard Overview
-![Dashboard Overview](https://chatgpt.com/c/docs/screenshots/dashboard-overview.png)
+![Dashboard Overview](docs/screenshots/dashboard-overview.png)
 
 Interactive Streamlit dashboard displaying job market metrics, salary insights, categories, locations, and skill demand analytics.
 
 ### 🗄️ Azure SQL Database Results
-![Azure SQL Results](https://chatgpt.com/c/docs/screenshots/azure-sql-results.png)
+![Azure SQL Results](docs/screenshots/azure-sql-results.png)
 
 Azure SQL Database storing processed job market data and supporting analytical queries.
 
 ### ☁️ Azure Blob Storage
-![Azure Blob Storage](https://chatgpt.com/c/docs/screenshots/blob-storage.png)
+![Azure Blob Storage](docs/screenshots/blob-storage.png)
 
 Azure Blob Storage used to store processed job market datasets as part of the cloud data pipeline.
 
@@ -70,6 +73,16 @@ Azure Blob Storage used to store processed job market datasets as part of the cl
 - Azure SQL loading
 - Interactive dashboard
 - Filters and charts
+
+## Dashboard
+
+- KPI cards
+- Skills analytics
+- Salary analysis
+- Company analysis
+- Location analysis
+- Filters
+- Downloadable filtered data
 
 ## Folder Structure
 
@@ -151,7 +164,7 @@ The dashboard highlights key labour market metrics including total jobs, average
 
 ## Current Limitations
 
-- Currently pulls one API page with 20 jobs.
+- Dataset: Approximately 775 South African job listings (ingested via multi-page Adzuna API).
 
 ## Future Improvements
 
@@ -160,6 +173,19 @@ The dashboard highlights key labour market metrics including total jobs, average
 - Azure Functions scheduling
 - Daily refresh
 - Deployment
+
+## Version 2 Improvements
+
+- Multi-page API ingestion
+- Increased dataset size to 775 jobs
+- Skills extraction from job descriptions
+- Skills analytics dashboard
+- Improved dashboard UI/UX
+- Project screenshots added
+
+## Important Note
+
+Deployment and automation are planned as future improvements. The current version runs locally and uses Azure cloud services for storage and database management.
 
 ## Author
 
