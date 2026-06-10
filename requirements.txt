@@ -4,6 +4,7 @@ numpy
 python-dotenv
 sqlalchemy
 pyodbc
+pymssql
 azure-storage-blob
 streamlit
 plotly

@@ -67,32 +67,23 @@ def load_sql_credentials():
 
 def create_sql_connection_string(credentials):
     """
-    Create a SQLAlchemy connection string for Azure SQL Database using ODBC Driver 18.
+    Create a SQLAlchemy connection string for Azure SQL Database using pymssql.
     
     Args:
         credentials (dict): Dictionary with server, database, username, password
         
     Returns:
-        str: SQLAlchemy connection string using pyodbc with encoded ODBC connection
+        str: SQLAlchemy connection string using pymssql
     """
-    # Build the ODBC connection string with required parameters
-    odbc_connection_string = (
-        f"DRIVER={{ODBC Driver 18 for SQL Server}};"
-        f"SERVER={credentials['server']};"
-        f"DATABASE={credentials['database']};"
-        f"UID={credentials['username']};"
-        f"PWD={credentials['password']};"
-        f"Encrypt=yes;"
-        f"TrustServerCertificate=no;"
-        f"Connection Timeout=30;"
+    username = quote_plus(credentials["username"])
+    password = quote_plus(credentials["password"])
+    server = credentials["server"]
+    database = credentials["database"]
+
+    connection_string = (
+        f"mssql+pymssql://{username}:{password}@{server}:1433/{database}"
     )
-    
-    # URL-encode the connection string for safe use in SQLAlchemy URL
-    encoded_connection_string = quote_plus(odbc_connection_string)
-    
-    # Create the SQLAlchemy connection string using the encoded ODBC string
-    connection_string = f"mssql+pyodbc:///?odbc_connect={encoded_connection_string}"
-    
+
     return connection_string
 
 
