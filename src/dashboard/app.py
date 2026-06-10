@@ -192,6 +192,55 @@ def get_salary_statistics(df):
     }
 
 
+def extract_and_count_skills(df):
+    """
+    Extract and count all skills from the skills column.
+    
+    This function:
+    1. Reads the skills column from the DataFrame
+    2. Splits comma-separated skills
+    3. Removes "No Skills Identified" entries
+    4. Counts the occurrence of each skill
+    5. Returns a DataFrame sorted by count (descending)
+    
+    Args:
+        df (pd.DataFrame): Jobs DataFrame with a 'skills' column
+        
+    Returns:
+        pd.DataFrame: DataFrame with columns ['skill', 'count'] sorted by count descending
+    """
+    # Initialize dictionary to store skill counts
+    skill_counts = {}
+    
+    # Iterate through each job's skills
+    for skills_text in df["skills"]:
+        # Skip empty or null values
+        if not skills_text or skills_text == "No Skills Identified":
+            continue
+        
+        # Split comma-separated skills and clean whitespace
+        skills = [skill.strip() for skill in skills_text.split(",")]
+        
+        # Count each skill
+        for skill in skills:
+            if skill:  # Skip empty strings
+                skill_counts[skill] = skill_counts.get(skill, 0) + 1
+    
+    # Convert to DataFrame
+    if skill_counts:
+        skills_df = pd.DataFrame(
+            list(skill_counts.items()),
+            columns=["skill", "count"]
+        )
+        # Sort by count in descending order
+        skills_df = skills_df.sort_values("count", ascending=False).reset_index(drop=True)
+    else:
+        # Return empty DataFrame if no skills found
+        skills_df = pd.DataFrame(columns=["skill", "count"])
+    
+    return skills_df
+
+
 # ============================================================================
 # PAGE LAYOUT
 # ============================================================================
@@ -289,6 +338,61 @@ with col3:
 with col4:
     num_categories = filtered_df["category"].nunique()
     st.metric("Categories", num_categories)
+
+
+# ============================================================================
+# SKILLS ANALYTICS SECTION
+# ============================================================================
+
+st.subheader("💼 Skills Analytics")
+
+# Extract and count skills from filtered data
+skills_df = extract_and_count_skills(filtered_df)
+
+# Create three columns for skills metrics
+col1, col2, col3 = st.columns(3)
+
+# Metric 1: Unique Skills Detected
+with col1:
+    unique_skills = len(skills_df)
+    st.metric("Unique Skills Detected", unique_skills)
+
+# Metric 2: Total Skill Mentions
+with col2:
+    total_skill_mentions = skills_df["count"].sum() if len(skills_df) > 0 else 0
+    st.metric("Total Skill Mentions", total_skill_mentions)
+
+# Metric 3: Most Common Skill
+with col3:
+    if len(skills_df) > 0:
+        most_common_skill = skills_df.iloc[0]["skill"]
+        most_common_count = skills_df.iloc[0]["count"]
+        st.metric("Most Common Skill", most_common_skill, delta=f"{most_common_count} mentions")
+    else:
+        st.metric("Most Common Skill", "N/A", delta="No skills data")
+
+# Chart: Top 15 In-Demand Skills
+st.markdown("#### Most In-Demand Skills (Top 15)")
+
+if len(skills_df) > 0:
+    # Get top 15 skills
+    top_skills = skills_df.head(15)
+    
+    # Create Plotly bar chart with skills on X-axis and count on Y-axis
+    fig = px.bar(
+        top_skills,
+        x="skill",
+        y="count",
+        color="count",
+        color_continuous_scale="Viridis",
+        height=400,
+        labels={"skill": "Skill", "count": "Number of Mentions"}
+    )
+    # Rotate X-axis labels for better readability
+    fig.update_layout(showlegend=False, xaxis_tickangle=-45)
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("No skills data available for this filter")
 
 
 # ============================================================================
@@ -414,7 +518,7 @@ else:
 st.subheader("📋 Detailed Job Listings")
 
 # Display filtered data table with selected columns
-columns_to_display = ["job_id", "title", "company", "location", "category", "salary_min", "salary_max", "salary_average"]
+columns_to_display = ["job_id", "title", "company", "location", "category", "salary_min", "salary_max", "salary_average", "skills"]
 display_df = filtered_df[columns_to_display].copy()
 
 # Format salary columns
