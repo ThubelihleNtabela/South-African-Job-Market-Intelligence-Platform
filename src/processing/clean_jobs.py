@@ -10,6 +10,68 @@ import pandas as pd
 from pathlib import Path
 from datetime import datetime
 
+# Predefined list of technical skills to extract from job descriptions
+# These skills are matched case-insensitively in job descriptions
+SKILLS = [
+    "Python",
+    "SQL",
+    "Power BI",
+    "Azure",
+    "Excel",
+    "Tableau",
+    "Machine Learning",
+    "Data Engineering",
+    "Databricks",
+    "Spark",
+    "AWS",
+    "Git",
+    "Pandas",
+    "NumPy",
+    "Statistics"
+]
+
+
+def extract_skills(description):
+    """
+    Extract technical skills from a job description.
+    
+    This function searches for predefined skills in the job description
+    using case-insensitive matching and returns all matched skills as a
+    comma-separated string. If no skills are found, it returns 
+    "No Skills Identified".
+    
+    Args:
+        description (str): Job description text to search for skills
+        
+    Returns:
+        str: Comma-separated list of matched skills, or "No Skills Identified" 
+             if none found or description is missing
+        
+    Example:
+        >>> extract_skills("We are looking for a Python and SQL expert with Azure experience")
+        "Python, SQL, Azure"
+        >>> extract_skills("We need a generic analyst with communication skills")
+        "No Skills Identified"
+    """
+    # Handle None or non-string descriptions
+    if not description or not isinstance(description, str):
+        return "No Skills Identified"
+    
+    # Convert description to lowercase for case-insensitive matching
+    description_lower = description.lower()
+    
+    # Find all skills that are mentioned in the description
+    found_skills = []
+    for skill in SKILLS:
+        if skill.lower() in description_lower:
+            found_skills.append(skill)
+    
+    # Return skills as comma-separated string, or default message if no skills found
+    if found_skills:
+        return ", ".join(found_skills)
+    else:
+        return "No Skills Identified"
+
 
 def get_latest_raw_file():
     """
@@ -179,8 +241,9 @@ def clean_jobs():
     1. Loads the latest raw JSON file
     2. Extracts relevant fields from the data
     3. Performs data cleaning operations
-    4. Saves the cleaned data to CSV
-    5. Prints statistics about the cleaning process
+    4. Extracts technical skills from job descriptions
+    5. Saves the cleaned data to CSV
+    6. Prints statistics about the cleaning process
     
     Returns:
         dict: Dictionary containing cleaning statistics and file path
@@ -204,21 +267,28 @@ def clean_jobs():
         df, duplicates_removed = clean_data(df)
         cleaned_count = len(df)
         
-        # Step 4: Save cleaned data
-        print("Step 4: Saving cleaned data...")
+        # Step 4: Extract skills from job descriptions
+        print("Step 4: Extracting skills from job descriptions...")
+        df["skills"] = df["description"].apply(extract_skills)
+        jobs_with_skills = (df["skills"] != "No Skills Identified").sum()
+        
+        # Step 5: Save cleaned data
+        print("Step 5: Saving cleaned data...")
         output_file = save_cleaned_data(df)
         
-        # Step 5: Print statistics
+        # Step 6: Print statistics
         print("\n--- Data Cleaning Complete ---")
         print(f"Raw record count:        {raw_count}")
         print(f"Cleaned record count:    {cleaned_count}")
         print(f"Duplicates removed:      {duplicates_removed}")
+        print(f"Jobs with skills found:  {jobs_with_skills}")
         print(f"Output file location:    {output_file}")
         
         return {
             "raw_count": raw_count,
             "cleaned_count": cleaned_count,
             "duplicates_removed": duplicates_removed,
+            "jobs_with_skills": jobs_with_skills,
             "output_file": str(output_file),
         }
     
