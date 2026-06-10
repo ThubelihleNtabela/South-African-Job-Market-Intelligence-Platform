@@ -23,6 +23,25 @@ flowchart LR
     G --> H[Streamlit Dashboard]
 ```
 
+## 📸 Project Screenshots
+
+The following screenshots demonstrate the end-to-end Azure Data Engineering pipeline and the resulting analytics dashboard for South African job market intelligence.
+
+### 📊 Dashboard Overview
+![Dashboard Overview](https://chatgpt.com/c/docs/screenshots/dashboard-overview.png)
+
+Interactive Streamlit dashboard displaying job market metrics, salary insights, categories, locations, and skill demand analytics.
+
+### 🗄️ Azure SQL Database Results
+![Azure SQL Results](https://chatgpt.com/c/docs/screenshots/azure-sql-results.png)
+
+Azure SQL Database storing processed job market data and supporting analytical queries.
+
+### ☁️ Azure Blob Storage
+![Azure Blob Storage](https://chatgpt.com/c/docs/screenshots/blob-storage.png)
+
+Azure Blob Storage used to store processed job market datasets as part of the cloud data pipeline.
+
 ## Technologies Used
 
 | Technology | Purpose |
