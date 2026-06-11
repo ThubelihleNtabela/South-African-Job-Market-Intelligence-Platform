@@ -124,8 +124,16 @@ def load_jobs_data():
         df = pd.read_sql_query(query, con=engine)
         return df
     except Exception as e:
-        st.error(f"Failed to load data from Azure SQL Database: {e}")
-        return None
+        st.warning("Using sample dataset because Azure SQL is temporarily unavailable.")
+        try:
+            fallback_path = os.path.join("data", "sample", "cleaned_jobs_sample.csv")
+            df = pd.read_csv(fallback_path)
+            return df
+        except Exception as fallback_error:
+            st.error(
+                f"Failed to load fallback sample dataset: {fallback_error}"
+            )
+            return None
 
 
 def get_filtered_data(df, selected_category, selected_company, selected_location):
